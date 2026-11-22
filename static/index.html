@@ -60,7 +60,8 @@ h2{font-size:28px;font-weight:600;letter-spacing:-.01em;margin-bottom:8px}
 .card h3{font-size:15.5px;font-weight:600;margin-bottom:8px}
 .card p{font-size:13.5px;color:var(--ink2)}
 .card .ico{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;margin-bottom:14px;
-  background:rgba(61,220,151,.1);border:1px solid rgba(61,220,151,.2);font-size:18px}
+  background:rgba(61,220,151,.1);border:1px solid rgba(61,220,151,.2)}
+.card .ico svg{width:19px;height:19px;fill:none;stroke:#3ddc97;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .lb{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .lb .row{display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:13px;
   border:1px solid var(--line);background:var(--panel);font-size:14px}
@@ -123,32 +124,32 @@ footer a:hover{color:var(--ink2)}
     <div class="sub">Правила русских шашек, проверка хода на сервере и никаких лишних запросов.</div>
     <div class="grid">
       <div class="card">
-        <div class="ico">♛</div>
+        <div class="ico"><svg viewBox="0 0 24 24"><path d="M3 8l4.2 3L12 4.5 16.8 11 21 8l-1.8 10H4.8L3 8z"/></svg></div>
         <h3>Дамка летает и бьёт назад</h3>
         <p>Ходит по всей диагонали в любую сторону, забирает шашки и с последней линии, и в обратном направлении.</p>
       </div>
       <div class="card">
-        <div class="ico">⏱</div>
+        <div class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="7"/><path d="M12 9.5V13l2.5 1.5M9 3h6"/></svg></div>
         <h3>Партия без «мёртвых» соперников</h3>
         <p>Если игрок закрыл приложение и 30 секунд не выходит на связь, партия завершается победой оставшегося.</p>
       </div>
       <div class="card">
-        <div class="ico">⚡</div>
+        <div class="ico"><svg viewBox="0 0 24 24"><path d="M13 3 5.5 13.5H11L10 21l7.5-10.5H12L13 3z"/></svg></div>
         <h3>Экономный протокол</h3>
         <p>Long-poll вместо частых опросов: один запрос держится до 25 секунд, лимиты сервера не расходуются.</p>
       </div>
       <div class="card">
-        <div class="ico">🤖</div>
+        <div class="ico"><svg viewBox="0 0 24 24"><rect x="4" y="7" width="16" height="12" rx="3"/><path d="M9 3v4M15 3v4M9 13h.01M15 13h.01M9 17h6"/></svg></div>
         <h3>Три уровня компьютера</h3>
         <p>Лёгкий, обычный и сложный — от случайных ходов до перебора на шесть полуходов.</p>
       </div>
       <div class="card">
-        <div class="ico">🔑</div>
+        <div class="ico"><svg viewBox="0 0 24 24"><circle cx="8" cy="8" r="3.5"/><path d="M10.5 10.5 20 20M16 16l-2 2 2 2"/></svg></div>
         <h3>Комната по коду</h3>
         <p>Создайте комнату, отправьте шестизначный код другу и играйте без поиска в очереди.</p>
       </div>
       <div class="card">
-        <div class="ico">🏆</div>
+        <div class="ico"><svg viewBox="0 0 24 24"><path d="M8 4h8v5a4 4 0 0 1-8 0V4z"/><path d="M8 5H5v2a3 3 0 0 0 3 3M16 5h3v2a3 3 0 0 1-3 3M12 13v4M9 20h6"/></svg></div>
         <h3>Рейтинг</h3>
         <p>Победы и число партий считаются на сервере, таблица обновляется после каждой игры.</p>
       </div>
@@ -184,7 +185,7 @@ footer a:hover{color:var(--ink2)}
   const black=[[0,1],[0,3],[0,5],[0,7],[1,0],[1,2],[1,4],[1,6],[2,1],[2,3],[2,5],[2,7]];
   let html='';
   for(let r=0;r<8;r++)for(let c=0;c<8;c++){
-    const dark=(r+c)%2===0;
+    const dark=(r+c)%2===1;
     const hasW=white.some(p=>p[0]===r&&p[1]===c), hasB=black.some(p=>p[0]===r&&p[1]===c);
     html+='<i class="'+(dark?'d':'l')+'">'+(hasW?'<span></span>':hasB?'<span class="bk"></span>':'')+'</i>';
   }
