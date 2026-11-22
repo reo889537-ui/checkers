@@ -555,7 +555,13 @@ Deno.serve(serveOptions, async (req: Request) => {
     const games = rows
       .map((r) => r.value as Game)
       // только настоящие партии: обе стороны за столом, идёт игра, активность за последние 10 минут
-      .filter((g) => g.seats.white && g.seats.black && g.status === "playing" && now - g.updatedAt < 10 * 60 * 1000)
+      .filter((g) => {
+        if (!g.seats.white || !g.seats.black || g.status !== "playing") return false;
+        if (now - g.updatedAt > 10 * 60 * 1000) return false;
+        // партия без единого хода живёт в списке максимум минуту — иначе это «комната-призрак»
+        if (g.moves.length === 0 && now - g.createdAt > 60 * 1000) return false;
+        return true;
+      })
       .sort((a, b) => b.updatedAt - a.updatedAt)
       .slice(0, 20)
       .map((g) => ({
