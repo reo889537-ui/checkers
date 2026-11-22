@@ -99,3 +99,29 @@ Deno.test("фузз: 3000 случайных ходов без нарушени�
     turn = turn === 1 ? 2 : 1;
   }
 });
+
+Deno.test("многоходовый бой: from и path корректны (регресс)", () => {
+  // белая простая (5,2) бьёт чёрные (4,3) и (2,5)
+  const cells = board([[5, 2, W], [4, 3, B], [2, 5, B]]);
+  const moves = legalMoves(cells, 1);
+  assertEquals(moves.length, 1);
+  assertEquals(moves[0].from, i(5, 2));
+  assertEquals(moves[0].path, [i(3, 4), i(1, 6)]);
+  assertEquals(moves[0].captured, [i(4, 3), i(2, 5)]);
+  const after = applyMove(cells, moves[0]);
+  assertEquals(after[i(5, 2)], EMPTY);
+  assertEquals(after[i(1, 6)], W);
+  assertEquals(after[i(4, 3)], EMPTY);
+  assertEquals(after[i(2, 5)], EMPTY);
+});
+
+Deno.test("дамка: два взятия подряд, from исходный", () => {
+  const cells = board([[0, 0, WK], [2, 2, B], [2, 6, B]]);
+  const moves = legalMoves(cells, 1);
+  const multi = moves.filter((m) => m.captured.length === 2);
+  assert(multi.length > 0);
+  for (const m of multi) {
+    assertEquals(m.from, i(0, 0));
+    assertEquals(m.captured.length, 2);
+  }
+});

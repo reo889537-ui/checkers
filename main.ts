@@ -14,6 +14,35 @@ const WAIT_MS = 25000;      // длительность long-poll
 const TICK_MS = 1000;       // внутренний шаг ожидания изменений
 const QUEUE_TTL_MS = 60000;
 
+const CAPACITY = Number(Deno.env.get("CAPACITY") ?? 30);   // максимум игроков онлайн
+
+/* присутствие: одна запись на клиента, TTL 90 c, запись не чаще раза в 15 c */
+const lastPresence = new Map<string, number>();
+async function touchPresence(me: string) {
+  const now = Date.now();
+  if (now - (lastPresence.get(me) ?? 0) < 15000) return;
+  lastPresence.set(me, now);
+  try { await store.set(["presence", me], { t: now }, 90); countCache.t = 0; } catch (_e) {}
+}
+
+let countCache = { t: 0, n: 0 };
+async function activeCount(): Promise<number> {
+  const now = Date.now();
+  if (now - countCache.t < 5000) return countCache.n;
+  const rows = await store.list(["presence"]);
+  countCache = { t: now, n: rows.length };
+  return countCache.n;
+}
+
+async function isFull(me: string | null): Promise<boolean> {
+  if ((await activeCount()) < CAPACITY) return false;
+  if (me) {
+    const row = await store.get(["presence", me]);
+    if (row) return false;   // уже внутри — не выкидываем
+  }
+  return true;
+}
+
 type Seat = { name: string; clientId: string; lastSeen: number };
 type SerializedMove = { from: [number, number]; path: [number, number][]; captured: [number, number][] };
 type Game = {
@@ -45,8 +74,8 @@ const store = await (async () => {
         const r = await kv.get(key);
         return r.value === null ? null : { key, value: r.value, versionstamp: r.versionstamp };
       },
-      async set(key: string[], value: any, expireIn?: number) {
-        await kv.set(key, value, expireIn ? { expireIn } : undefined);
+      async set(key: string[], value: any, expireInSec?: number) {
+        await kv.set(key, value, expireInSec ? { expireIn: expireInSec * 1000 } : undefined);
       },
       async del(key: string[]) { await kv.delete(key); },
       async list(prefix: string[]): Promise<Row[]> {
@@ -71,8 +100,8 @@ const store = await (async () => {
         if (!alive(e)) { mem.delete(k(key)); return null; }
         return { key, value: e!.value, versionstamp: e!.vs };
       },
-      async set(key: string[], value: any, expireIn?: number) {
-        mem.set(k(key), { value, vs: `v${++n}`, exp: expireIn ? Date.now() + expireIn : 0 });
+      async set(key: string[], value: any, expireInSec?: number) {
+        mem.set(k(key), { value, vs: `v${++n}`, exp: expireInSec ? Date.now() + expireInSec * 1000 : 0 });
       },
       async del(key: string[]) { mem.delete(k(key)); },
       async list(prefix: string[]): Promise<Row[]> {
@@ -246,6 +275,13 @@ Deno.serve(serveOptions, async (req: Request) => {
   const me = req.headers.get("x-client-id") || null;
   const origin = "*";
 
+  const mutating = req.method === "POST" &&
+    (path === "/api/queue" || path === "/api/room" || path === "/api/room/join");
+  if (me && mutating && (await isFull(me))) {
+    return json({ error: "server_full", online: await activeCount(), capacity: CAPACITY }, 503, origin);
+  }
+  if (me) await touchPresence(me);
+
   if (req.method === "OPTIONS") {
     return new Response(null, {
       status: 204,
@@ -260,7 +296,7 @@ Deno.serve(serveOptions, async (req: Request) => {
 
   /* health */
   if (path === "/health") {
-    return json({ ok: true, game: "checkers", uptime: Math.round((Date.now() - startedAt) / 1000), store: store.kind }, 200, origin);
+    return json({ ok: true, game: "checkers", uptime: Math.round((Date.now() - startedAt) / 1000), store: store.kind, online: await activeCount(), capacity: CAPACITY }, 200, origin);
   }
 
   /* очередь соперника */
@@ -442,8 +478,11 @@ Deno.serve(serveOptions, async (req: Request) => {
   /* список партий */
   if (path === "/api/games") {
     const rows = await store.list(["game"]);
+    const now = Date.now();
     const games = rows
       .map((r) => r.value as Game)
+      // только настоящие партии: обе стороны за столом, идёт игра, активность за последние 10 минут
+      .filter((g) => g.seats.white && g.seats.black && g.status === "playing" && now - g.updatedAt < 10 * 60 * 1000)
       .sort((a, b) => b.updatedAt - a.updatedAt)
       .slice(0, 20)
       .map((g) => ({
@@ -452,7 +491,7 @@ Deno.serve(serveOptions, async (req: Request) => {
         names: { white: g.seats.white?.name ?? null, black: g.seats.black?.name ?? null },
         moves: g.moves.length,
       }));
-    return json({ games }, 200, origin);
+    return json({ games, online: await activeCount(), capacity: CAPACITY }, 200, origin);
   }
 
   /* рейтинг */

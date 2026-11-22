@@ -40,7 +40,7 @@ export function promotesOn(piece: number, r: number) {
 
 function captureFrom(
   cells: Cells, from: number, piece: number, captured: number[],
-  path: number[], out: Move[], promoted: boolean,
+  path: number[], out: Move[], promoted: boolean, origin: number,
 ): boolean {
   const isK = isKing(piece) || promoted;
   const me = colorOf(piece);
@@ -62,8 +62,8 @@ function captureFrom(
         any = true;
         captured.push(victim); path.push(land);
         const nowKing = promoted || isKing(piece) || promotesOn(piece, lr);
-        if (!captureFrom(cells, land, piece, captured, path, out, nowKing))
-          out.push({ from, path: path.slice(), captured: captured.slice(), promote: nowKing && !isKing(piece) });
+        if (!captureFrom(cells, land, piece, captured, path, out, nowKing, origin))
+          out.push({ from: origin, path: path.slice(), captured: captured.slice(), promote: nowKing && !isKing(piece) });
         path.pop(); captured.pop();
         lr += dr; lc += dc;
       }
@@ -78,8 +78,8 @@ function captureFrom(
       any = true;
       captured.push(victim); path.push(land);
       const becameKing = promotesOn(piece, lr);
-      if (!captureFrom(cells, land, piece, captured, path, out, becameKing))
-        out.push({ from, path: path.slice(), captured: captured.slice(), promote: becameKing });
+      if (!captureFrom(cells, land, piece, captured, path, out, becameKing, origin))
+        out.push({ from: origin, path: path.slice(), captured: captured.slice(), promote: becameKing });
       path.pop(); captured.pop();
     }
   }
@@ -91,7 +91,7 @@ export function captures(cells: Cells, turn: number): Move[] {
   for (let i = 0; i < 64; i++) {
     const p = cells[i];
     if (p === EMPTY || colorOf(p) !== turn) continue;
-    captureFrom(cells, i, p, [], [], out, false);
+    captureFrom(cells, i, p, [], [], out, false, i);
   }
   return out;
 }

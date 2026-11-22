@@ -3,203 +3,298 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Шашки — русские шашки онлайн</title>
-<meta name="description" content="Русские шашки: игра с компьютером, поиск соперника и партия по коду. Windows-клиент и Android-приложение.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%233ddc97'/%3E%3C/svg%3E">
+<title>Шашки 2.0.1 — русские шашки онлайн</title>
+<meta name="description" content="Русские шашки: игра с компьютером, поиск соперника, комната по коду. Windows-клиент, APK 2.0.1 и браузерная версия.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23191C21'/%3E%3Ccircle cx='16' cy='16' r='8' fill='%236FB39B'/%3E%3C/svg%3E">
 <style>
-:root{--bg:#080a0e;--panel:rgba(22,27,34,.66);--line:rgba(255,255,255,.08);--line2:rgba(255,255,255,.14);
-  --ink:#eef2f6;--ink2:#a9b4c0;--ink3:#6f7b88;--mint:#3ddc97;--amber:#f6b756}
+:root{
+  --bg:#0B0D10; --bg2:#111317; --card:#161A1F; --line:rgba(255,255,255,.09);
+  --ink:#F1EFE8; --muted:#8E9297; --accent:#6FB39B; --accent2:#3E6A5A;
+  --light-sq:#D9CFB8; --dark-sq:#4A5A52;
+}
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:radial-gradient(1200px 700px at 15% -15%,rgba(61,220,151,.13),transparent 60%),
-  radial-gradient(900px 600px at 100% 100%,rgba(246,183,86,.09),transparent 55%),var(--bg);
-  color:var(--ink);font:16px/1.55 "Segoe UI",system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg); color:var(--ink);
+  font:16px/1.6 "Segoe UI",system-ui,-apple-system,sans-serif; -webkit-font-smoothing:antialiased;
+  background-image:
+    radial-gradient(900px 600px at 78% -10%,rgba(111,179,155,.16),transparent 60%),
+    radial-gradient(700px 500px at 0% 30%,rgba(111,179,155,.07),transparent 55%);
+  background-repeat:no-repeat;
+}
 a{color:inherit;text-decoration:none}
-.wrap{max-width:1080px;margin:0 auto;padding:0 24px}
-header{display:flex;align-items:center;justify-content:space-between;padding:22px 0}
-.brand{display:flex;align-items:center;gap:12px}
-.logo{width:40px;height:40px;border-radius:13px;position:relative;border:1px solid var(--line2);
-  background:linear-gradient(145deg,#2a3440,#151a21);box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
-.logo::before,.logo::after{content:"";position:absolute;width:14px;height:14px;border-radius:50%}
-.logo::before{background:radial-gradient(circle at 35% 30%,#fff,#cfc4a9);left:6px;top:6px}
-.logo::after{background:radial-gradient(circle at 35% 30%,#3a424c,#10141a);right:6px;bottom:6px}
-.brand b{font-size:17px;font-weight:600}
-.brand span{display:block;font-size:11px;color:var(--ink3);letter-spacing:.14em;text-transform:uppercase}
-.nav{display:flex;gap:18px;font-size:14px;color:var(--ink2)}
-.nav a:hover{color:var(--ink)}
-.hero{display:grid;grid-template-columns:1.1fr .9fr;gap:56px;align-items:center;padding:54px 0 30px}
-.tag{display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border-radius:999px;border:1px solid rgba(61,220,151,.3);
-  background:rgba(61,220,151,.08);color:var(--mint);font-size:12.5px;letter-spacing:.04em;margin-bottom:22px}
-.hero h1{font-size:52px;line-height:1.05;letter-spacing:-.02em;font-weight:650;margin-bottom:18px}
-.hero h1 em{font-style:normal;color:var(--mint)}
-.hero p{color:var(--ink2);font-size:17px;max-width:520px;margin-bottom:30px}
-.cta{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:16px}
-.btn{display:inline-flex;align-items:center;gap:10px;padding:15px 24px;border-radius:14px;font-size:15px;
-  font-weight:600;transition:.18s;border:1px solid transparent}
-.btn-main{background:linear-gradient(145deg,#57e6a8,#22b87c);color:#08120d;box-shadow:0 12px 30px rgba(34,184,124,.28)}
-.btn-main:hover{transform:translateY(-2px);box-shadow:0 16px 34px rgba(34,184,124,.36)}
-.btn-ghost{border-color:var(--line2);color:var(--ink);background:var(--panel)}
-.btn-ghost:hover{border-color:rgba(255,255,255,.24);transform:translateY(-2px)}
-.note{font-size:12.5px;color:var(--ink3)}
-.board-art{position:relative;border-radius:26px;padding:14px;border:1px solid var(--line2);
-  background:linear-gradient(160deg,rgba(38,46,56,.9),rgba(16,20,26,.95));box-shadow:0 30px 70px rgba(0,0,0,.5)}
-.board{display:grid;grid-template-columns:repeat(8,1fr);border-radius:14px;overflow:hidden}
-.board i{aspect-ratio:1/1;display:block;position:relative}
-.board i.l{background:linear-gradient(145deg,#f0e5cc,#ddceac)}
-.board i.d{background:linear-gradient(145deg,#96754f,#7b5c3c)}
-.board i span{position:absolute;inset:14%;border-radius:50%;
-  background:radial-gradient(circle at 35% 30%,#fffdf5,#e6dcc4 55%,#c9bda1);box-shadow:0 2px 6px rgba(0,0,0,.35)}
-.board i span.bk{background:radial-gradient(circle at 35% 30%,#5a6572,#2b333c 50%,#0f1419)}
-.float{position:absolute;right:-18px;bottom:26px;padding:12px 16px;border-radius:14px;background:#10161d;
-  border:1px solid var(--line2);box-shadow:0 18px 40px rgba(0,0,0,.5);font-size:13px;color:var(--ink2)}
-.float b{display:block;color:var(--mint);font-size:15px}
-section{padding:46px 0}
-h2{font-size:28px;font-weight:600;letter-spacing:-.01em;margin-bottom:8px}
-.sub{color:var(--ink2);margin-bottom:26px}
-.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
-.card{padding:22px;border-radius:18px;border:1px solid var(--line);background:var(--panel);backdrop-filter:blur(10px)}
-.card h3{font-size:15.5px;font-weight:600;margin-bottom:8px}
-.card p{font-size:13.5px;color:var(--ink2)}
-.card .ico{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;margin-bottom:14px;
-  background:rgba(61,220,151,.1);border:1px solid rgba(61,220,151,.2)}
-.card .ico svg{width:19px;height:19px;fill:none;stroke:#3ddc97;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
-.lb{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.lb .row{display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:13px;
-  border:1px solid var(--line);background:var(--panel);font-size:14px}
-.lb .row .n{width:20px;color:var(--ink3);font-variant-numeric:tabular-nums}
-.lb .row .who{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.lb .row .w{color:var(--mint);font-variant-numeric:tabular-nums}
-.lb .row .g{color:var(--ink3);font-size:12px}
-.steps{counter-reset:s;display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
-.steps div{position:relative;padding-left:46px;font-size:14px;color:var(--ink2)}
-.steps div::before{counter-increment:s;content:counter(s);position:absolute;left:0;top:0;width:30px;height:30px;
-  border-radius:50%;display:grid;place-items:center;background:rgba(61,220,151,.12);color:var(--mint);
-  border:1px solid rgba(61,220,151,.25);font-size:13px;font-weight:600}
-.steps b{display:block;color:var(--ink);margin-bottom:4px;font-size:14.5px}
-footer{border-top:1px solid var(--line);margin-top:40px;padding:26px 0 40px;color:var(--ink3);font-size:13px;
-  display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
-footer a:hover{color:var(--ink2)}
-@media(max-width:860px){
-  .hero{grid-template-columns:1fr;gap:34px;padding:30px 0}
-  .hero h1{font-size:38px}.grid,.steps,.lb{grid-template-columns:1fr}
-  .nav{display:none}
+.wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+
+/* ── шапка ── */
+header{position:sticky;top:0;z-index:20;backdrop-filter:blur(14px);
+  background:rgba(11,13,16,.72);border-bottom:1px solid var(--line)}
+header .in{display:flex;align-items:center;justify-content:space-between;height:68px}
+.logo{display:flex;align-items:center;gap:11px;font-weight:600;letter-spacing:.02em}
+.logo .mark{width:34px;height:34px;border-radius:11px;position:relative;
+  background:linear-gradient(145deg,#242B33,#14181D);border:1px solid var(--line)}
+.logo .mark::after{content:"";position:absolute;inset:9px;border-radius:50%;
+  background:radial-gradient(circle at 32% 28%,#fff,#D9CFB8 62%,#b9ad93)}
+nav{display:flex;align-items:center;gap:22px;font-size:14.5px;color:var(--muted)}
+nav a:hover{color:var(--ink)}
+.pill{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:999px;
+  border:1px solid var(--line);font-size:12.5px;color:var(--muted);background:rgba(255,255,255,.03)}
+.pill i{width:7px;height:7px;border-radius:50%;background:var(--muted)}
+.pill.on i{background:var(--accent);box-shadow:0 0 10px var(--accent)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;
+  padding:14px 22px;border-radius:14px;font-size:15px;font-weight:600;border:1px solid transparent;
+  transition:transform .15s,background .2s,box-shadow .2s;white-space:nowrap}
+.btn:hover{transform:translateY(-1px)}
+.btn-main{background:var(--accent);color:#0B1310;box-shadow:0 14px 30px rgba(111,179,155,.22)}
+.btn-ghost{border-color:var(--line);background:rgba(255,255,255,.03);color:var(--ink)}
+.btn-ghost:hover{background:rgba(255,255,255,.07)}
+.btn-sm{padding:10px 16px;border-radius:11px;font-size:13.5px}
+
+/* ── герой ── */
+.hero{display:grid;grid-template-columns:1.05fr .95fr;gap:64px;align-items:center;padding:72px 0 48px}
+.eyebrow{font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--accent);margin-bottom:18px}
+h1{font-size:56px;line-height:1.04;letter-spacing:-.025em;font-weight:650;margin-bottom:20px}
+h1 span{color:var(--accent)}
+.hero p{color:var(--muted);font-size:17px;max-width:520px;margin-bottom:28px}
+.cta{display:flex;flex-wrap:wrap;gap:10px}
+.meta{margin-top:16px;font-size:12.5px;color:#6C7378;line-height:1.7}
+
+/* ── демо-доска ── */
+.board-card{position:relative;aspect-ratio:1/1;width:100%;max-width:440px;margin:0 auto;
+  padding:14px;border-radius:26px;border:1px solid var(--line);
+  background:linear-gradient(160deg,rgba(38,46,56,.9),rgba(14,17,21,.98));
+  box-shadow:0 40px 80px -20px rgba(0,0,0,.75)}
+.board{position:relative;width:100%;height:100%;border-radius:14px;overflow:hidden}
+.sq{position:absolute;width:12.5%;height:12.5%}
+.pc{position:absolute;width:9.6%;height:9.6%;border-radius:50%;
+  transition:left .42s cubic-bezier(.4,0,.2,1),top .42s cubic-bezier(.4,0,.2,1),opacity .3s;
+  box-shadow:inset 0 -2px 4px rgba(0,0,0,.35)}
+.pc.w{background:radial-gradient(circle at 34% 28%,#fffdf6,#EDE4D2 55%,#C6BAA2);
+  border:1.5px solid rgba(120,105,75,.45)}
+.pc.b{background:radial-gradient(circle at 34% 28%,#5A6572,#2B333C 55%,#10151A);
+  border:1.5px solid rgba(180,192,203,.5)}
+.badge{position:absolute;left:50%;transform:translateX(-50%);bottom:-14px;padding:9px 16px;border-radius:12px;
+  background:#101418;border:1px solid var(--line);font-size:12.5px;color:var(--muted);
+  box-shadow:0 14px 30px rgba(0,0,0,.5);white-space:nowrap}
+.badge b{color:var(--accent)}
+
+/* ── статистика ── */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);
+  border:1px solid var(--line);border-radius:18px;overflow:hidden;margin:8px 0 8px}
+.stats div{background:var(--bg2);padding:22px 20px}
+.stats b{display:block;font-size:26px;font-weight:650;letter-spacing:-.02em}
+.stats span{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#6C7378}
+
+section{padding:56px 0}
+h2{font-size:32px;letter-spacing:-.02em;font-weight:640;margin-bottom:10px}
+.sub{color:var(--muted);margin-bottom:30px;max-width:640px}
+
+/* ── возможности ── */
+.feats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.feat{padding:22px;border-radius:18px;border:1px solid var(--line);background:var(--card);transition:.2s}
+.feat:hover{border-color:rgba(111,179,155,.35);transform:translateY(-2px)}
+.feat svg{width:20px;height:20px;fill:none;stroke:var(--accent);stroke-width:1.7;
+  stroke-linecap:round;stroke-linejoin:round;margin-bottom:14px}
+.feat h3{font-size:15px;margin-bottom:6px;font-weight:600}
+.feat p{font-size:13.5px;color:var(--muted);line-height:1.55}
+
+/* ── скачать ── */
+.dl{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.dl .item{display:flex;flex-direction:column;gap:12px;padding:24px;border-radius:20px;
+  border:1px solid var(--line);background:linear-gradient(160deg,#181D23,#111418)}
+.dl .item .top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.dl .item .os{font-size:16px;font-weight:600}
+.dl .item .ver{font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent)}
+.dl .item p{font-size:13px;color:var(--muted)}
+.dl .item .btn{width:100%}
+.dl note{font-size:12px;color:#6C7378}
+
+footer{border-top:1px solid var(--line);padding:26px 0 44px;color:#6C7378;font-size:13px;
+  display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap}
+
+@media (max-width:900px){
+  .hero{grid-template-columns:1fr;gap:36px;padding:40px 0 20px}
+  h1{font-size:38px}
+  .feats,.dl{grid-template-columns:1fr}
+  .stats{grid-template-columns:1fr 1fr}
+  nav{display:none}
 }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <div class="brand">
-      <div class="logo"></div>
-      <div><b>Шашки</b><span>русские · онлайн</span></div>
-    </div>
-    <nav class="nav">
+<header>
+  <div class="wrap in">
+    <div class="logo"><span class="mark"></span> Шашки</div>
+    <nav>
       <a href="#features">Возможности</a>
-      <a href="#rating">Рейтинг</a>
+      <a href="#download">Скачать</a>
       <a href="/play">Играть</a>
+      <span class="pill" id="statusPill"><i></i> <span id="statusText">проверка</span></span>
     </nav>
-  </header>
+  </div>
+</header>
 
+<div class="wrap">
   <div class="hero">
     <div>
-      <div class="tag">● сервер работает</div>
-      <h1>Русские шашки<br>без <em>лишнего</em></h1>
-      <p>Играйте с компьютером, ищите соперника в общей очереди или отправляйте другу код комнаты. Одна партия — с любого устройства.</p>
+      <div class="eyebrow">русские шашки · версия 2.0.1</div>
+      <h1>Партия,<br>которая <span>не бросит</span> вас одну</h1>
+      <p>Играйте с компьютером на трёх уровнях, ищите соперника в общей очереди или отправляйте другу код комнаты. Одно приложение для ПК, телефона и браузера.</p>
       <div class="cta">
         <a class="btn btn-main" href="/download/win">Скачать для Windows</a>
+        <a class="btn btn-ghost" href="/download/apk">APK 2.0.1 для Android</a>
         <a class="btn btn-ghost" href="/play">Играть в браузере</a>
       </div>
-      <div class="cta" style="margin-bottom:18px">
-        <a class="btn btn-ghost" href="/download/apk" style="padding:11px 18px;font-size:13.5px">Скачать для Android · APK 2.0.1</a>
-      </div>
-      <div class="note">Windows-клиент — один файл, без установки. При первом запуске SmartScreen может предупредить о неизвестном издателе: «Подробнее → Выполнить всё равно».<br>APK 2.0.1 — код комнаты из шести знаков; подпись новая, поэтому прежнюю версию нужно удалить перед установкой.</div>
+      <div class="meta">Windows-клиент — один файл, без установки · APK 62 КБ · вход без регистрации</div>
     </div>
-    <div class="board-art">
-      <div class="board" id="art"></div>
-      <div class="float"><b>30 сек</b>без ответа соперника — победа вам</div>
+    <div class="board-card">
+      <div class="board" id="demo"></div>
+      <div class="badge">ход проверяет <b>сервер</b></div>
     </div>
+  </div>
+
+  <div class="stats">
+    <div><b id="stOnline">—</b><span>игроков онлайн</span></div>
+    <div><b id="stGames">—</b><span>партий сейчас</span></div>
+    <div><b id="stPlayers">—</b><span>в рейтинге</span></div>
+    <div><b>2.0.1</b><span>версия</span></div>
   </div>
 
   <section id="features">
     <h2>Что внутри</h2>
-    <div class="sub">Правила русских шашек, проверка хода на сервере и никаких лишних запросов.</div>
-    <div class="grid">
-      <div class="card">
-        <div class="ico"><svg viewBox="0 0 24 24"><path d="M3 8l4.2 3L12 4.5 16.8 11 21 8l-1.8 10H4.8L3 8z"/></svg></div>
-        <h3>Дамка летает и бьёт назад</h3>
-        <p>Ходит по всей диагонали в любую сторону, забирает шашки и с последней линии, и в обратном направлении.</p>
-      </div>
-      <div class="card">
-        <div class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="7"/><path d="M12 9.5V13l2.5 1.5M9 3h6"/></svg></div>
-        <h3>Партия без «мёртвых» соперников</h3>
-        <p>Если игрок закрыл приложение и 30 секунд не выходит на связь, партия завершается победой оставшегося.</p>
-      </div>
-      <div class="card">
-        <div class="ico"><svg viewBox="0 0 24 24"><path d="M13 3 5.5 13.5H11L10 21l7.5-10.5H12L13 3z"/></svg></div>
-        <h3>Экономный протокол</h3>
-        <p>Long-poll вместо частых опросов: один запрос держится до 25 секунд, лимиты сервера не расходуются.</p>
-      </div>
-      <div class="card">
-        <div class="ico"><svg viewBox="0 0 24 24"><rect x="4" y="7" width="16" height="12" rx="3"/><path d="M9 3v4M15 3v4M9 13h.01M15 13h.01M9 17h6"/></svg></div>
-        <h3>Три уровня компьютера</h3>
-        <p>Лёгкий, обычный и сложный — от случайных ходов до перебора на шесть полуходов.</p>
-      </div>
-      <div class="card">
-        <div class="ico"><svg viewBox="0 0 24 24"><circle cx="8" cy="8" r="3.5"/><path d="M10.5 10.5 20 20M16 16l-2 2 2 2"/></svg></div>
-        <h3>Комната по коду</h3>
-        <p>Создайте комнату, отправьте шестизначный код другу и играйте без поиска в очереди.</p>
-      </div>
-      <div class="card">
-        <div class="ico"><svg viewBox="0 0 24 24"><path d="M8 4h8v5a4 4 0 0 1-8 0V4z"/><path d="M8 5H5v2a3 3 0 0 0 3 3M16 5h3v2a3 3 0 0 1-3 3M12 13v4M9 20h6"/></svg></div>
-        <h3>Рейтинг</h3>
-        <p>Победы и число партий считаются на сервере, таблица обновляется после каждой игры.</p>
-      </div>
+    <div class="sub">Правила русских шашек, серверная проверка ходов и экономный протокол без лишних запросов.</div>
+    <div class="feats">
+      <div class="feat"><svg viewBox="0 0 24 24"><path d="M3 8l4.2 3L12 4.5 16.8 11 21 8l-1.8 10H4.8L3 8z"/></svg>
+        <h3>Дамка бьёт назад</h3><p>Летает по всей диагонали в любую сторону и забирает шашки даже с последней линии.</p></div>
+      <div class="feat"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="7"/><path d="M12 9.5V13l2.5 1.5M9 3h6"/></svg>
+        <h3>30 секунд и победа</h3><p>Соперник закрыл приложение и пропал — партия завершается в вашу пользу.</p></div>
+      <div class="feat"><svg viewBox="0 0 24 24"><path d="M13 3 5.5 13.5H11L10 21l7.5-10.5H12L13 3z"/></svg>
+        <h3>Экономный протокол</h3><p>Long-poll вместо частых опросов: один запрос держится до 25 секунд.</p></div>
+      <div class="feat"><svg viewBox="0 0 24 24"><rect x="4" y="8" width="16" height="11" rx="3"/><path d="M9 4v4M15 4v4M9 13h.01M15 13h.01"/></svg>
+        <h3>Компьютер</h3><p>Три уровня: от спокойного до перебора на шесть полуходов.</p></div>
+      <div class="feat"><svg viewBox="0 0 24 24"><circle cx="8" cy="8" r="3.5"/><path d="M10.5 10.5 20 20M16 16l-2 2 2 2"/></svg>
+        <h3>Комната по коду</h3><p>Шестизначный код — и друг за той же доской, без очереди и ожидания.</p></div>
+      <div class="feat"><svg viewBox="0 0 24 24"><path d="M8 4h8v5a4 4 0 0 1-8 0V4z"/><path d="M8 5H5v2a3 3 0 0 0 3 3M16 5h3v2a3 3 0 0 1-3 3M12 13v4M9 20h6"/></svg>
+        <h3>Рейтинг</h3><p>Победы и число партий считаются на сервере и обновляются сразу после игры.</p></div>
     </div>
   </section>
 
-  <section id="rating">
-    <h2>Лидеры</h2>
-    <div class="sub">Данные загружаются с сервера в реальном времени.</div>
-    <div class="lb" id="lb"><div class="row"><span class="who">Загрузка…</span></div></div>
-  </section>
-
-  <section>
-    <h2>Как начать</h2>
-    <div class="sub">Три шага, ничего настраивать не нужно.</div>
-    <div class="steps">
-      <div><b>Скачайте клиент</b>Один exe-файл для Windows или APK для Android — установка не требуется.</div>
-      <div><b>Выберите режим</b>Компьютер, поиск соперника или комната по коду — всё в одном окне.</div>
-      <div><b>Играйте</b>Ходы проверяются на сервере, результат сразу попадает в рейтинг.</div>
+  <section id="download">
+    <h2>Скачать</h2>
+    <div class="sub">Ни регистрации, ни установщиков: распаковали — играете.</div>
+    <div class="dl">
+      <div class="item">
+        <div class="top"><span class="os">Windows</span><span class="ver">2.0.1 · 6 МБ</span></div>
+        <p>Один exe-файл. При первом запуске SmartScreen может предупредить — «Подробнее → Выполнить всё равно».</p>
+        <a class="btn btn-main" href="/download/win">Скачать Shashki.exe</a>
+      </div>
+      <div class="item">
+        <div class="top"><span class="os">Android</span><span class="ver">2.0.1 · 62 КБ</span></div>
+        <p>Код комнаты из шести знаков. Подпись новая — прежнюю версию удалите перед установкой.</p>
+        <a class="btn btn-ghost" href="/download/apk">Скачать Shashki-2.0.1.apk</a>
+      </div>
     </div>
   </section>
 
   <footer>
-    <span>© Шашки. Русские шашки онлайн.</span>
-    <span><a href="/play">Играть</a> · <a href="/health">Статус сервера</a></span>
+    <span>© Шашки · русские шашки онлайн · 2.0.1</span>
+    <span><a href="/play">Играть</a> · <a href="/health">Статус</a> · <a href="/download/apk19">APK 1.9</a></span>
   </footer>
 </div>
+
 <script>
-// доска-декорация
+/* демо-партия на доске */
 (function(){
-  const b=document.getElementById('art');
-  const white=[[5,0],[5,2],[5,4],[5,6],[6,1],[6,3],[6,5],[6,7],[7,0],[7,2],[7,4],[7,6]];
-  const black=[[0,1],[0,3],[0,5],[0,7],[1,0],[1,2],[1,4],[1,6],[2,1],[2,3],[2,5],[2,7]];
-  let html='';
-  for(let r=0;r<8;r++)for(let c=0;c<8;c++){
-    const dark=(r+c)%2===1;
-    const hasW=white.some(p=>p[0]===r&&p[1]===c), hasB=black.some(p=>p[0]===r&&p[1]===c);
-    html+='<i class="'+(dark?'d':'l')+'">'+(hasW?'<span></span>':hasB?'<span class="bk"></span>':'')+'</i>';
+  const board=document.getElementById('demo');
+  if(!board)return;
+  const N=8;
+  const cellPct=12.5, pcPct=9.6;
+  const off=(cellPct-pcPct)/2;
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){
+    const d=document.createElement('div');
+    d.className='sq';
+    d.style.left=(c*cellPct)+'%'; d.style.top=(r*cellPct)+'%';
+    d.style.background=((r+c)%2===1)?'linear-gradient(145deg,#546054,#3C4A42)':'linear-gradient(145deg,#E6DCC6,#D3C6AA)';
+    board.appendChild(d);
   }
-  b.innerHTML=html;
+  const start=[];
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){
+    if((r+c)%2!==1)continue;
+    if(r<3)start.push(['b',r,c]);
+    if(r>4)start.push(['w',r,c]);
+  }
+  const pieces=[];
+  function place(){
+    pieces.forEach(p=>p.el.remove());
+    pieces.length=0;
+    start.forEach(([col,r,c])=>{
+      const el=document.createElement('div');
+      el.className='pc '+col;
+      el.style.left=(c*cellPct+off)+'%';
+      el.style.top=(r*cellPct+off)+'%';
+      board.appendChild(el);
+      pieces.push({col,r,c,el});
+    });
+  }
+  function find(r,c){return pieces.find(p=>p.r===r&&p.c===c&&p.el.style.opacity!=='0');}
+  function mv(r1,c1,r2,c2){
+    const p=find(r1,c1); if(!p)return;
+    p.r=r2;p.c=c2;
+    p.el.style.left=(c2*cellPct+off)+'%';
+    p.el.style.top=(r2*cellPct+off)+'%';
+  }
+  function hit(r,c){
+    const p=find(r,c); if(!p)return;
+    p.el.style.opacity='0';
+    setTimeout(()=>p.el.remove(),320);
+  }
+  place();
+  // короткая «партия»: несколько ходов и один бой, затем по кругу
+  const script=[
+    ()=>{},                       // пауза
+    ()=>mv(5,2,4,3),
+    ()=>mv(2,3,3,4),
+    ()=>mv(5,4,4,5),
+    ()=>mv(2,5,3,6),
+    ()=>mv(6,3,5,2),
+    ()=>mv(1,2,2,3),
+    ()=>{mv(4,3,2,5);hit(3,4);},
+    ()=>mv(3,6,4,5)
+  ];
+  let i=0;
+  setInterval(()=>{
+    i++;
+    if(i>=script.length){
+      i=0;
+      board.querySelectorAll('.pc').forEach(e=>e.remove());
+      place();
+      return;
+    }
+    script[i]();
+  },1400);
 })();
-// рейтинг
-fetch('/api/leaderboard?clientId=web').then(r=>r.json()).then(d=>{
-  const box=document.getElementById('lb');
-  const ps=(d.players||[]).slice(0,6);
-  if(!ps.length){box.innerHTML='<div class="row"><span class="who">Пока нет сыгранных партий</span></div>';return;}
-  box.innerHTML=ps.map((p,i)=>'<div class="row"><span class="n">'+(i+1)+'</span>'+
-    '<span class="who">'+String(p.name||'—').replace(/[<>&]/g,'')+'</span>'+
-    '<span class="w">'+p.wins+'</span><span class="g">'+p.games+' игр</span></div>').join('');
-}).catch(()=>{document.getElementById('lb').innerHTML='<div class="row"><span class="who">Сервер недоступен</span></div>';});
+
+/* статус и цифры */
+(async function(){
+  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+  try{
+    const h=await (await fetch('/health')).json();
+    const pill=document.getElementById('statusPill');
+    pill.classList.toggle('on',!!h.ok);
+    document.getElementById('statusText').textContent=h.ok
+      ? ('онлайн '+h.online+' / '+h.capacity) : 'сервер недоступен';
+    set('stOnline',h.ok?(h.online+' / '+h.capacity):'—');
+  }catch(e){
+    document.getElementById('statusText').textContent='нет связи';
+  }
+  try{
+    const g=await (await fetch('/api/games')).json();
+    set('stGames',(g.games||[]).length);
+  }catch(e){}
+  try{
+    const l=await (await fetch('/api/leaderboard')).json();
+    set('stPlayers',(l.players||[]).length);
+  }catch(e){}
+})();
 </script>
 </body>
 </html>

@@ -43,6 +43,20 @@ body{
 .pawn{width:124px;height:124px;object-fit:cover;align-self:center;border-radius:50%;
   background:#fff;padding:6px;box-shadow:0 12px 26px rgba(0,0,0,.35);
   animation:bob 4s ease-in-out infinite}
+.loader{position:relative;width:120px;height:120px;align-self:center;margin:6px 0}
+.loader img{width:100%;height:100%;object-fit:cover;border-radius:50%;background:#fff;padding:7px;
+  animation:bob 3.2s ease-in-out infinite}
+.loader::before{content:"";position:absolute;inset:-7px;border-radius:50%;
+  background:conic-gradient(from 0deg,rgba(0,0,0,0) 0 62%,var(--accent));
+  -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#000 calc(100% - 3px));
+  mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#000 calc(100% - 3px));
+  animation:spin 1.15s linear infinite}
+@keyframes spin{to{transform:rotate(1turn)}}
+.dots{display:flex;gap:6px;justify-content:center;align-items:center}
+.dots i{width:6px;height:6px;border-radius:50%;background:var(--accent);opacity:.25;
+  animation:pulse 1.2s ease-in-out infinite}
+.dots i:nth-child(2){animation-delay:.18s}.dots i:nth-child(3){animation-delay:.36s}
+@keyframes pulse{0%,100%{opacity:.25;transform:scale(.85)}50%{opacity:1;transform:scale(1.25)}}
 @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
 h1.brand{font-family:"Segoe UI Light","Segoe UI",system-ui,sans-serif;font-weight:300;
   font-size:calc(44px*var(--scale));letter-spacing:.16em;text-align:center;line-height:1}
@@ -130,7 +144,7 @@ canvas{display:block;border-radius:18px;cursor:pointer}
 
   <section class="screen on center" id="scr-connect">
     <div class="sheet">
-      <img class="pawn" src="assets/pawn.webp" alt="Пешка">
+      <div class="loader"><img src="assets/pawn.webp" alt="Пешка"></div>
       <div class="lead">Привет, я Пешка</div>
       <div class="lead-sub">Слежу за доской и объявляю ходы.</div>
       <div class="card" style="display:flex;flex-direction:column;gap:12px">
@@ -138,6 +152,7 @@ canvas{display:block;border-radius:18px;cursor:pointer}
         <div style="font-size:calc(13.5px*var(--scale));color:var(--soft)">
           <span class="status-dot" id="connDot"></span><span id="connText">Связываюсь с сервером…</span>
         </div>
+        <div class="dots" id="connDots"><i></i><i></i><i></i></div>
         <div class="hintline" id="connHint" style="text-align:left">Без сервера доступна только игра с ботом.</div>
         <button class="btn outline btn-sm" id="btnRetry" style="display:none">Повторить</button>
       </div>
@@ -158,6 +173,15 @@ canvas{display:block;border-radius:18px;cursor:pointer}
         <div class="hintline" style="text-align:left">Тёмная стоит по умолчанию. Поменять можно в любой момент.</div>
       </div>
       <button class="btn primary" id="btnStart">Дальше</button>
+    </div>
+  </section>
+
+  <section class="screen center" id="scr-full">
+    <div class="sheet">
+      <img class="pawn" src="assets/pawn.webp" alt="" style="width:104px;height:104px">
+      <div class="lead">Сервер заполнен</div>
+      <div class="lead-sub" id="fullText">Сейчас играют 30 человек из 30. Как только кто-то выйдет — заходите.</div>
+      <button class="btn primary" id="btnFullRetry">Проверить снова</button>
     </div>
   </section>
 
@@ -197,7 +221,7 @@ canvas{display:block;border-radius:18px;cursor:pointer}
 
   <section class="screen center" id="scr-search">
     <div class="sheet">
-      <img class="pawn" src="assets/pawn.webp" alt="" style="width:96px;height:96px">
+      <div class="loader" style="width:96px;height:96px"><img src="assets/pawn.webp" alt=""></div>
       <div class="lead">Ищу игрока</div>
       <div class="lead-sub" id="searchText">Ставим вас в очередь. Как только появится второй игрок — партия начнётся сама.</div>
       <button class="btn outline" id="btnCancelSearch">Отмена</button>
@@ -243,7 +267,7 @@ function initialCells(){const a=new Array(64).fill(0);
   return a;}
 const keyOf=a=>a.join('');
 const promotesOn=(p,r)=>p===W?r===0:p===B?r===7:false;
-function capFrom(cells,from,piece,captured,path,out,promoted){
+function capFrom(cells,from,piece,captured,path,out,promoted,origin){
   const isK=isKing(piece)||promoted, me=colorOf(piece), r0=from>>3, c0=from&7;
   let any=false;
   for(const [dr,dc] of DIRS){
@@ -258,8 +282,8 @@ function capFrom(cells,from,piece,captured,path,out,promoted){
         const land=lr*8+lc; any=true;
         captured.push(v);path.push(land);
         const nowK=promoted||isKing(piece)||promotesOn(piece,lr);
-        if(!capFrom(cells,land,piece,captured,path,out,nowK))
-          out.push({from,path:path.slice(),captured:captured.slice(),promote:nowK&&!isKing(piece)});
+        if(!capFrom(cells,land,piece,captured,path,out,nowK,origin))
+          out.push({from:origin,path:path.slice(),captured:captured.slice(),promote:nowK&&!isKing(piece)});
         path.pop();captured.pop();lr+=dr;lc+=dc;
       }
     } else {
@@ -269,15 +293,15 @@ function capFrom(cells,from,piece,captured,path,out,promoted){
       if(cells[v]===EMPTY||cells[land]!==EMPTY||colorOf(cells[v])===me||captured.indexOf(v)>=0)continue;
       any=true;captured.push(v);path.push(land);
       const bk=promotesOn(piece,lr);
-      if(!capFrom(cells,land,piece,captured,path,out,bk))
-        out.push({from,path:path.slice(),captured:captured.slice(),promote:bk});
+      if(!capFrom(cells,land,piece,captured,path,out,bk,origin))
+        out.push({from:origin,path:path.slice(),captured:captured.slice(),promote:bk});
       path.pop();captured.pop();
     }
   }
   return any;
 }
 function captures(cells,turn){const out=[];
-  for(let i=0;i<64;i++){const p=cells[i];if(!p||colorOf(p)!==turn)continue;capFrom(cells,i,p,[],[],out,false);}
+  for(let i=0;i<64;i++){const p=cells[i];if(!p||colorOf(p)!==turn)continue;capFrom(cells,i,p,[],[],out,false,i);}
   return out;}
 function quietMoves(cells,turn){const out=[];
   for(let i=0;i<64;i++){const p=cells[i];if(!p||colorOf(p)!==turn)continue;
@@ -352,6 +376,7 @@ const S={mode:'bot',cells:initialCells(),turn:1,quiet:0,history:[],lastMove:null
   over:false,code:null,names:{white:'',black:''},selected:-1,candidates:[],hops:[],targets:[],
   thinking:false,started:false,anim:null,seq:0,screen:'connect'};
 const rc=i=>[i>>3,i&7], files='abcdefgh';
+window.__ck={get S(){return S;},render(){render();updateWho();renderMoves();},legal(){return legalMoves(S.cells,S.turn).map(m=>({f:m.from,p:m.path,c:m.captured}));}};
 const sqName=i=>files[i&7]+(8-(i>>3));
 const moveText=m=>[m.from].concat(m.path).map(sqName).join(m.captured.length?':':'–');
 const other=t=>t===1?2:1;
@@ -372,6 +397,10 @@ document.head.insertAdjacentHTML('beforeend','<style>'+
 '.ov .list .it small{color:var(--muted);font-size:calc(11.5px*var(--scale));width:52px;text-align:right}'+
 '</style>');
 
+function showFull(online,cap){
+  $('#fullText').textContent='Сейчас играют '+online+' из '+(cap||30)+'. Как только кто-то выйдет — заходите.';
+  show('scr-full');
+}
 function show(id){
   $$('.screen').forEach(e=>e.classList.toggle('on',e.id===id));
   $('#game').classList.toggle('on',id==='game');
@@ -414,6 +443,11 @@ async function checkServer(){
   try{
     const r=await api('/health','GET',null,7000);
     if(r.ok){
+      const dots=$('#connDots'); if(dots)dots.style.display='none';
+      if(typeof r.online==='number'&&typeof r.capacity==='number'&&r.online>=r.capacity){
+        showFull(r.online,r.capacity);
+        return false;
+      }
       $('#connText').textContent='Сервер доступен';
       $('#connDot').className='status-dot ok';
       $('#connHint').textContent='Можно играть с компьютером и онлайн.';
@@ -460,7 +494,6 @@ function rrect(x,y,w,h,r){
   ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();
 }
 function drawPiece(cx,cy,piece,selected){
-  const bgCol=cssv('--bg'), card=cssv('--card');
   const light=colorOf(piece)===1;
   const r=cell*0.33;
   const fill=light?cssv('--piece-light'):cssv('--piece-dark');
@@ -482,47 +515,53 @@ function drawPiece(cx,cy,piece,selected){
     ctx.beginPath();ctx.arc(cx,cy,r*0.34,0,Math.PI*2);ctx.stroke();
   }
 }
+/* ── поворот доски: играя чёрными, видим свои шашки внизу ── */
+function flipped(){return S.mode!=='watch'&&S.mySide===2;}
+function dispRC(i){const r=i>>3,c=i&7;return flipped()?[7-r,7-c]:[r,c];}
+function boardIdx(R,C){const f=flipped();return (f?7-R:R)*8+(f?7-C:C);}
 function draw(now){
   const bg=cssv('--bg'), sq=cssv('--square'), accent=cssv('--accent'), frame=cssv('--frame');
   ctx.clearRect(0,0,size,size);
   ctx.fillStyle=bg;ctx.fillRect(0,0,size,size);
   ctx.save();rrect(0,0,size,size,14);ctx.clip();
+  // клетки (шахматный порядок сохраняется при повороте)
   ctx.fillStyle=sq;
-  for(let r=0;r<8;r++)for(let c=0;c<8;c++)
-    if((r+c)%2===1)ctx.fillRect(c*cell,r*cell,cell,cell);
+  for(let R=0;R<8;R++)for(let C=0;C<8;C++)
+    if((R+C)%2===1)ctx.fillRect(C*cell,R*cell,cell,cell);
   if(S.lastMove){
     ctx.strokeStyle=accent;ctx.globalAlpha=0.35;ctx.lineWidth=1.5;
     for(const sqIdx of [S.lastMove.from,S.lastMove.path[S.lastMove.path.length-1]]){
-      const [r,c]=rc(sqIdx);
-      ctx.strokeRect(c*cell+0.5,r*cell+0.5,cell-1,cell-1);
+      const [R,C]=dispRC(sqIdx);
+      ctx.strokeRect(C*cell+0.5,R*cell+0.5,cell-1,cell-1);
     }
     ctx.globalAlpha=1;
   }
   const anim=S.anim;
+  const animEnd=anim?anim.path[anim.path.length-1]:-1;
   for(let i=0;i<64;i++){
     const p=S.cells[i];if(!p)continue;
-    if(anim&&(i===anim.from||i===anim.path[anim.path.length-1]))continue;
-    const [r,c]=rc(i);
-    drawPiece(c*cell+cell/2,r*cell+cell/2,p,i===S.selected);
+    if(anim&&(i===anim.from||i===animEnd))continue;
+    const [R,C]=dispRC(i);
+    drawPiece(C*cell+cell/2,R*cell+cell/2,p,i===S.selected);
   }
   if(anim){
     const t=Math.min(1,(now-anim.t0)/anim.dur);
     const total=anim.path.length, seg=1/total;
     const k=Math.min(total-1,Math.floor(t/seg)), f=(t-k*seg)/seg;
-    const [r1,c1]=rc(k===0?anim.from:anim.path[k-1]);
-    const [r2,c2]=rc(anim.path[k]);
-    const x=(c1+(c2-c1)*f)*cell+cell/2;
-    const y=(r1+(r2-r1)*f)*cell+cell/2-Math.sin(f*Math.PI)*cell*0.12;
+    const [R1,C1]=dispRC(k===0?anim.from:anim.path[k-1]);
+    const [R2,C2]=dispRC(anim.path[k]);
+    const x=(C1+(C2-C1)*f)*cell+cell/2;
+    const y=(R1+(R2-R1)*f)*cell+cell/2-Math.sin(f*Math.PI)*cell*0.10;
     drawPiece(x,y,anim.piece,false);
     if(t>=1)S.anim=null;
   }
   ctx.strokeStyle=accent;ctx.lineWidth=1;
-  S.hops.forEach(h=>{const [r,c]=rc(h);
-    ctx.beginPath();ctx.arc(c*cell+cell/2,r*cell+cell/2,cell*0.16,0,Math.PI*2);ctx.stroke();});
+  S.hops.forEach(h=>{const [R,C]=dispRC(h);
+    ctx.beginPath();ctx.arc(C*cell+cell/2,R*cell+cell/2,cell*0.16,0,Math.PI*2);ctx.stroke();});
   const seen=new Set();
   S.targets.forEach(t=>{
     if(seen.has(t.sq))return;seen.add(t.sq);
-    const [r,c]=rc(t.sq), cx=c*cell+cell/2, cy=r*cell+cell/2;
+    const [R,C]=dispRC(t.sq), cx=C*cell+cell/2, cy=R*cell+cell/2;
     if(t.capture){
       ctx.strokeStyle=accent;ctx.lineWidth=2.2;
       ctx.beginPath();ctx.arc(cx,cy,cell*0.19,0,Math.PI*2);ctx.stroke();
@@ -602,7 +641,7 @@ function commit(move){
   S.quiet=move.captured.length?0:S.quiet+1;
   S.history.push(move);S.lastMove=move;S.turn=other(S.turn);
   S.anim={from:move.from,path:move.path,piece:S.cells[move.path[move.path.length-1]],
-    t0:performance.now(),dur:160+120*move.path.length};
+    t0:performance.now(),dur:70+45*move.path.length};
   clearSel();updateWho();renderMoves();render();
   const out=outcomeOf(S.cells,S.turn,S.quiet);
   if(out){finishLocal(out);return;}
@@ -683,6 +722,7 @@ function startSearch(){
     if(Date.now()-t0>120000){$('#searchText').textContent='Никого не нашли за две минуты. Попробуйте позже.';return;}
     try{
       const r=await api('/api/queue','POST',{name:store.name||'Игрок'},9000);
+      if(r.error==='server_full'){showFull(r.capacity||30,r.capacity||30);return;}
       if(r.code&&r.color){openGame(r.code,r.color);return;}
       $('#searchText').textContent='Вы в очереди. Как только появится второй игрок — партия начнётся сама.';
     }catch(e){$('#searchText').textContent='Нет связи с сервером. Пробую снова…';}
@@ -693,6 +733,7 @@ function startSearch(){
 async function createRoom(){
   try{
     const r=await api('/api/room','POST',{name:store.name||'Игрок'},12000);
+    if(r.error==='server_full'){showFull(r.capacity||30,r.capacity||30);return;}
     if(!r.code){overlay('<h2>Не получилось</h2><p style="color:var(--muted)">Сервер не выдал комнату.</p>');return;}
     S.mode='online';S.code=r.code;S.mySide=r.color==='black'?2:1;
     $('#roomCode').textContent=r.code;
@@ -719,6 +760,7 @@ async function joinRoom(){
   const btn=$('#btnEnter');btn.disabled=true;btn.textContent='Подключаюсь…';
   try{
     const r=await api('/api/room/join','POST',{code,name:store.name||'Игрок'},12000);
+    if(r.error==='server_full'){btn.disabled=false;btn.textContent='Войти';showFull(r.capacity||30,r.capacity||30);return;}
     if(r.error){overlay('<h2>Не вышло</h2><p style="color:var(--muted)">'+
       (r.error==='full'?'В комнате уже двое.':r.error==='finished'?'Партия уже закончена.':'Комната не найдена.')+'</p>');
       btn.disabled=false;btn.textContent='Войти';return;}
@@ -761,7 +803,7 @@ function applyState(st){
     const grew=hist.length>S.history.length;
     S.cells=cells;S.history=hist;S.quiet=quiet;S.lastMove=last;S.seq=hist.length;
     if(grew&&last)S.anim={from:last.from,path:last.path,piece:cells[last.path[last.path.length-1]],
-      t0:performance.now(),dur:160+120*last.path.length};
+      t0:performance.now(),dur:70+45*last.path.length};
   }
   S.turn=st.turn==='black'?2:1;
   const status=st.status||'playing';
@@ -844,11 +886,15 @@ function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;',
 /* ── обработчики ── */
 $('#board').addEventListener('click',e=>{
   const b=cv.getBoundingClientRect();
-  const c=Math.floor((e.clientX-b.left)/cell), r=Math.floor((e.clientY-b.top)/cell);
-  if(r<0||r>7||c<0||c>7)return;step(r*8+c);
+  const C=Math.floor((e.clientX-b.left)/cell), R=Math.floor((e.clientY-b.top)/cell);
+  if(R<0||R>7||C<0||C>7)return;step(boardIdx(R,C));
 });
 $$('#themeChips .chip').forEach(ch=>ch.addEventListener('click',()=>applyTheme(ch.dataset.theme)));
 $('#btnRetry').addEventListener('click',checkServer);
+$('#btnFullRetry').addEventListener('click',async()=>{
+  const ok=await checkServer();
+  show(ok?'scr-connect':'scr-full');
+});
 $('#btnStart').addEventListener('click',()=>{
   const nm=($('#inName').value||'').trim().slice(0,14);
   if(nm)store.name=nm;
