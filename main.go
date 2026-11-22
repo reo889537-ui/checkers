@@ -10,12 +10,16 @@ import (
 	"io/fs"
 	"net"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"sync/atomic"
 	"time"
 )
+
+const remoteAPI = "https://countrywars.countrywars.deno.net"
 
 //go:embed play
 var assets embed.FS
@@ -33,7 +37,7 @@ func main() {
 		panic(err)
 	}
 	port := ln.Addr().(*net.TCPAddr).Port
-	url := fmt.Sprintf("http://127.0.0.1:%d/", port)
+	appURL := fmt.Sprintf("http://127.0.0.1:%d/", port)
 
 	mux := http.NewServeMux()
 	mux.Handle("/", http.FileServer(http.FS(sub)))
@@ -42,6 +46,19 @@ func main() {
 		w.Header().Set("Cache-Control", "no-store")
 		w.Write([]byte("ok"))
 	})
+	// прокси к боевому серверу: интерфейс всегда работает с одним origin
+	if target, err := url.Parse(remoteAPI); err == nil {
+		proxy := httputil.NewSingleHostReverseProxy(target)
+		proxy.FlushInterval = -1 // сразу отдаём ответы long-poll
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			atomic.StoreInt64(&lastSeen, time.Now().Unix())
+			r.Host = target.Host
+			proxy.ServeHTTP(w, r)
+		}
+		mux.HandleFunc("/api/", handler)
+		mux.HandleFunc("/health", handler)
+	}
+
 	mux.HandleFunc("/quit", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("bye"))
 		go func() { time.Sleep(150 * time.Millisecond); os.Exit(0) }()
@@ -54,7 +71,7 @@ func main() {
 		}
 	}()
 
-	openWindow(url)
+	openWindow(appURL)
 
 	// Приложение живёт, пока страница присылает пульс.
 	for {
@@ -88,13 +105,13 @@ func candidates() []string {
 	return out
 }
 
-func openWindow(url string) {
+func openWindow(appURL string) {
 	for _, exe := range candidates() {
 		if _, err := os.Stat(exe); err != nil {
 			continue
 		}
 		cmd := exec.Command(exe,
-			"--app="+url,
+			"--app="+appURL,
 			"--window-size=1280,880",
 			"--user-data-dir="+filepath.Join(os.TempDir(), "checkers-app"),
 			"--no-first-run",
@@ -105,5 +122,5 @@ func openWindow(url string) {
 			return
 		}
 	}
-	exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
+	exec.Command("rundll32", "url.dll,FileProtocolHandler", appURL).Start()
 }

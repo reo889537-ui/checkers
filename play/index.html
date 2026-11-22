@@ -358,8 +358,9 @@ function aiChoose(cells,turn,level){
 /* ── приложение 2.0.1 ── */
 (function(){
 const VERSION='2.0.1';
-const API=(location.hostname==='127.0.0.1'||location.hostname==='localhost')
-  ? 'https://countrywars.countrywars.deno.net' : '';
+// клиент всегда ходит на свой origin: на сайте это сам сервер,
+// в exe — локальный прокси, который пересылает /api и /health на боевой сервер
+const API='';
 const $=s=>document.querySelector(s);
 const $$=s=>[...document.querySelectorAll(s)];
 const store={
@@ -367,6 +368,11 @@ const store={
   set name(v){localStorage.setItem('ck.name',v);},
   get theme(){return localStorage.getItem('ck.theme')||'dark';},
   set theme(v){localStorage.setItem('ck.theme',v);},
+  get sid(){
+    let v=sessionStorage.getItem('ck.sid');
+    if(!v){v=Math.random().toString(36).slice(2,10);sessionStorage.setItem('ck.sid',v);}
+    return v;
+  },
   get cid(){let c=localStorage.getItem('ck.cid');
     if(!c){c='ck_'+Date.now().toString(16)+Math.floor(Math.random()*0x3ffffff).toString(16);localStorage.setItem('ck.cid',c);}return c;},
   get level(){return localStorage.getItem('ck.level')||'normal';}
@@ -424,7 +430,7 @@ async function api(path,method,body,timeout){
   const ctrl=new AbortController(), timer=setTimeout(()=>ctrl.abort(),timeout||12000);
   try{
     const res=await fetch(API+path,{method:method||'GET',
-      headers:{'Accept':'application/json','Content-Type':'application/json; charset=utf-8','X-Client-Id':store.cid},
+      headers:{'Accept':'application/json','Content-Type':'application/json; charset=utf-8','X-Client-Id':store.cid,'X-Session-Id':store.sid},
       body:body?JSON.stringify(body):undefined,signal:ctrl.signal,cache:'no-store'});
     const text=await res.text();
     let j;try{j=JSON.parse(text||'{}');}catch(e){j={raw:text};}
@@ -831,7 +837,12 @@ async function sendMove(move){
     const body=Object.assign({code:S.code,seq:S.seq},moveJSON(move));
     S.seq=S.history.length;
     const r=await api('/api/game/move','POST',body,14000);
-    if(r.error)setState('Ход отклонён: '+r.error);
+    if(r.error){
+      setState('Ход отклонён: '+r.error);
+      if(r.state)applyState(r.state);   // синхронизация из этого же ответа — без лишних запросов
+      return;
+    }
+    if(Array.isArray(r.moves))applyState(r);   // сервер подтвердил ход
   }catch(e){setState('Ход не отправлен — нет связи');}
 }
 async function resign(){
@@ -906,7 +917,11 @@ $('#btnStart').addEventListener('click',()=>{
 });
 $('#btnBot').addEventListener('click',startBot);
 $('#btnFind').addEventListener('click',startSearch);
-$('#btnCancelSearch').addEventListener('click',goMenu);
+$('#btnCancelSearch').addEventListener('click',()=>{
+  // снимаем себя с очереди, чтобы нас не «поженили» с призраком
+  api('/api/queue/cancel','POST',{},5000).catch(()=>{});
+  goMenu();
+});
 $('#btnCode').addEventListener('click',()=>{show('scr-room');$('#roomWait').style.display='none';$('#inCode').focus();});
 $('#btnBack').addEventListener('click',goMenu);
 $('#btnCreate').addEventListener('click',createRoom);
@@ -937,9 +952,13 @@ $('#btnResign').addEventListener('click',()=>{
   document.getElementById('ovResign').addEventListener('click',()=>{closeOverlay();resign();});
 });
 window.addEventListener('pagehide',()=>{
+  if(S.screen==='search'){
+    try{fetch(API+'/api/queue/cancel',{method:'POST',keepalive:true,
+      headers:{'Content-Type':'application/json','X-Client-Id':store.cid,'X-Session-Id':store.sid},body:'{}'});}catch(e){}
+  }
   if(S.mode==='online'&&S.code&&!S.over){
     try{fetch(API+'/api/game/resign',{method:'POST',keepalive:true,
-      headers:{'Content-Type':'application/json','X-Client-Id':store.cid},
+      headers:{'Content-Type':'application/json','X-Client-Id':store.cid,'X-Session-Id':store.sid},
       body:JSON.stringify({code:S.code})});}catch(e){}
   }
   try{navigator.sendBeacon('/quit','1');}catch(e){}

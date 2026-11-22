@@ -18,11 +18,11 @@ const CAPACITY = Number(Deno.env.get("CAPACITY") ?? 30);   // максимум �
 
 /* присутствие: одна запись на клиента, TTL 90 c, запись не чаще раза в 15 c */
 const lastPresence = new Map<string, number>();
-async function touchPresence(me: string) {
+async function touchPresence(qk: string) {
   const now = Date.now();
-  if (now - (lastPresence.get(me) ?? 0) < 15000) return;
-  lastPresence.set(me, now);
-  try { await store.set(["presence", me], { t: now }, 90); countCache.t = 0; } catch (_e) {}
+  if (now - (lastPresence.get(qk) ?? 0) < 15000) return;
+  lastPresence.set(qk, now);
+  try { await store.set(["presence", qk], { t: now }, 90); countCache.t = 0; } catch (_e) {}
 }
 
 let countCache = { t: 0, n: 0 };
@@ -34,10 +34,10 @@ async function activeCount(): Promise<number> {
   return countCache.n;
 }
 
-async function isFull(me: string | null): Promise<boolean> {
+async function isFull(qk: string | null): Promise<boolean> {
   if ((await activeCount()) < CAPACITY) return false;
-  if (me) {
-    const row = await store.get(["presence", me]);
+  if (qk) {
+    const row = await store.get(["presence", qk]);
     if (row) return false;   // уже внутри — не выкидываем
   }
   return true;
@@ -87,6 +87,24 @@ const store = await (async () => {
         const res = await kv.atomic().check({ key, versionstamp }).delete(key).commit();
         return res.ok;
       },
+      /* обновить свою запись, только если её никто не тронул */
+      async refresh(key: string[], vs: string, value: any, expireInSec: number) {
+        const res = await kv.atomic()
+          .check({ key, versionstamp: vs })
+          .set(key, value, { expireIn: expireInSec * 1000 })
+          .commit();
+        return res.ok;
+      },
+      /* атомарно: пометить запись соперника «выдан» и удалить свою */
+      async pair(oppKey: string[], oppVs: string, myKey: string[], myVs: string, assigned: any) {
+        const res = await kv.atomic()
+          .check({ key: oppKey, versionstamp: oppVs })
+          .check({ key: myKey, versionstamp: myVs })
+          .set(oppKey, { assigned, ts: Date.now() }, { expireIn: 120000 })
+          .delete(myKey)
+          .commit();
+        return res.ok;
+      },
     };
   } catch (_e) {
     const mem = new Map<string, { value: any; vs: string; exp: number }>();
@@ -117,6 +135,19 @@ const store = await (async () => {
         const e = mem.get(k(key));
         if (!alive(e) || e!.vs !== vs) return false;
         mem.delete(k(key));
+        return true;
+      },
+      async refresh(key: string[], vs: string, value: any, expireInSec: number) {
+        const e = mem.get(k(key));
+        if (!alive(e) || e!.vs !== vs) return false;
+        mem.set(k(key), { value, vs: `v${++n}`, exp: Date.now() + expireInSec * 1000 });
+        return true;
+      },
+      async pair(oppKey: string[], oppVs: string, myKey: string[], myVs: string, assigned: any) {
+        const a = mem.get(k(oppKey)), b = mem.get(k(myKey));
+        if (!alive(a) || !alive(b) || a!.vs !== oppVs || b!.vs !== myVs) return false;
+        mem.set(k(oppKey), { value: { assigned, ts: Date.now() }, vs: `v${++n}`, exp: Date.now() + 120000 });
+        mem.delete(k(myKey));
         return true;
       },
     };
@@ -233,7 +264,7 @@ const json = (data: unknown, status = 200, origin = "*") =>
       "content-type": "application/json; charset=utf-8",
       "access-control-allow-origin": origin,
       "access-control-allow-methods": "GET,POST,DELETE,OPTIONS",
-      "access-control-allow-headers": "content-type,x-client-id,accept",
+      "access-control-allow-headers": "content-type,x-client-id,x-session-id,accept",
       "cache-control": "no-store",
     },
   });
@@ -273,14 +304,16 @@ Deno.serve(serveOptions, async (req: Request) => {
   const url = new URL(req.url);
   const path = url.pathname;
   const me = req.headers.get("x-client-id") || null;
+  const sid = req.headers.get("x-session-id") || me;          // у каждой вкладки свой слот
+  const qk = me ? `${me}#${sid}` : "";                        // ключ очереди/присутствия
   const origin = "*";
 
   const mutating = req.method === "POST" &&
     (path === "/api/queue" || path === "/api/room" || path === "/api/room/join");
-  if (me && mutating && (await isFull(me))) {
+  if (qk && mutating && (await isFull(qk))) {
     return json({ error: "server_full", online: await activeCount(), capacity: CAPACITY }, 503, origin);
   }
-  if (me) await touchPresence(me);
+  if (qk) await touchPresence(qk);
 
   if (req.method === "OPTIONS") {
     return new Response(null, {
@@ -288,7 +321,7 @@ Deno.serve(serveOptions, async (req: Request) => {
       headers: {
         "access-control-allow-origin": origin,
         "access-control-allow-methods": "GET,POST,DELETE,OPTIONS",
-        "access-control-allow-headers": "content-type,x-client-id,accept",
+        "access-control-allow-headers": "content-type,x-client-id,x-session-id,accept",
         "access-control-max-age": "86400",
       },
     });
@@ -305,20 +338,30 @@ Deno.serve(serveOptions, async (req: Request) => {
     const name = String(body.name ?? "Игрок").slice(0, 14) || "Игрок";
     if (!me) return json({ error: "no_client_id" }, 400, origin);
 
-    const mine = await store.get(["q", me]);
+    const now = Date.now();
+    let mine = await store.get(["q", qk]);
+
+    // 1. соперника уже подобрали — забираем комнату
     if (mine?.value?.assigned) {
       const { code, color } = mine.value.assigned;
-      await store.del(["q", me]);
+      await store.del(["q", qk]);
       return json({ code, color }, 200, origin);
     }
+    // 2. своя запись в очереди (нужна для атомарной пары)
+    if (!mine) {
+      await store.set(["q", qk], { name, clientId: me, qid: qk, ts: now }, 120);
+      mine = await store.get(["q", qk]);
+    }
+    if (!mine) return json({ status: "waiting" }, 200, origin);
 
+    // 3. ищем живого ожидающего и «женим» атомарно: помечаем его запись, удаляем свою.
+    //    Без общей блокировки два клиента не смогут создать две разные комнаты.
     const list = await store.list(["q"]);
-    const now = Date.now();
     for (const row of list) {
       const v = row.value;
-      if (!v || v.assigned || v.clientId === me) continue;
-      if (now - (v.ts || 0) > 15000) continue;
-      if (!(await store.claim(row.key, row.versionstamp))) continue;
+      if (!v || v.assigned || v.qid === qk) continue;   // не пара самому себе
+      if (now - (v.ts || 0) > 6000) continue;
+
       const code = newCode();
       const g: Game = {
         code, status: "playing", turn: 1, moves: [], cells: cellsKey(initialCells()), quiet: 0,
@@ -330,15 +373,33 @@ Deno.serve(serveOptions, async (req: Request) => {
         createdAt: now, startedAt: now, updatedAt: now, ver: 0,
       };
       await saveGame(g);
-      await store.set(["q", v.clientId], { assigned: { code, color: "white" }, ts: now }, 120);
+      const ok = await store.pair(row.key, row.versionstamp, mine.key, mine.versionstamp,
+        { code, color: "white" });
+      if (!ok) { await store.del(["game", code]); continue; }   // кто-то успел раньше — комната не нужна
       return json({ code, color: "black" }, 200, origin);
     }
 
-    await store.set(["q", me], { name, clientId: me, ts: now }, 120);
+    // 4. обновляем метку ожидания, но не затираем выданный талон
+    const refreshed = await store.refresh(mine.key, mine.versionstamp,
+      { name, clientId: me, qid: qk, ts: now }, 120);
+    if (!refreshed) {
+      const again = await store.get(["q", qk]);
+      if (again?.value?.assigned) {
+        const { code, color } = again.value.assigned;
+        await store.del(["q", qk]);
+        return json({ code, color }, 200, origin);
+      }
+    }
     return json({ status: "waiting" }, 200, origin);
   }
 
-  /* создать комнату */
+/* выйти из очереди */
+  if (path === "/api/queue/cancel" && req.method === "POST") {
+    if (qk) await store.del(["q", qk]);
+    return json({ ok: true }, 200, origin);
+  }
+
+/* создать комнату */
   if (path === "/api/room" && req.method === "POST") {
     const body = await req.json().catch(() => ({}));
     const name = String(body.name ?? "Игрок").slice(0, 14) || "Игрок";
@@ -439,7 +500,7 @@ Deno.serve(serveOptions, async (req: Request) => {
     const capArr: number[] = Array.isArray(b.captured) ? b.captured.map((p: number[]) => p[0] * 8 + p[1]) : [];
     const cells: Cells = fromKey(g.cells);
     const legal: Move | null = findMove(cells, g.turn, from, pathArr, capArr);
-    if (!legal) return json({ error: "illegal_move" }, 409, origin);
+    if (!legal) return json({ error: "illegal_move", state: publicState(g, me, g.moves.length) }, 409, origin);
 
     const next = applyMove(cells, legal);
     g.cells = cellsKey(next);
