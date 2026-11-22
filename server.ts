@@ -237,7 +237,10 @@ async function serveFile(path: string, downloadName?: string): Promise<Response>
 /* ─────────── сервер ─────────── */
 const startedAt = Date.now();
 
-Deno.serve({ port: Number(Deno.env.get("PORT") ?? 8000) }, async (req: Request) => {
+const portEnv = Deno.env.get("PORT");
+const serveOptions = portEnv ? { port: Number(portEnv) } : {};
+
+Deno.serve(serveOptions, async (req: Request) => {
   const url = new URL(req.url);
   const path = url.pathname;
   const me = req.headers.get("x-client-id") || null;
