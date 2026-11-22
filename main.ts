@@ -154,21 +154,18 @@ const store = await (async () => {
   }
 })();
 
-/* ─────────── перенос старого рейтинга (однократно) ─────────── */
+/* ─────────── разовый сброс статистики ───────────
+   Выполняется один раз после обновления: чистит партии, рейтинг, очередь и присутствие.
+   Флаг в KV не даёт повторить сброс при следующих запусках. */
 try {
-  if (!(await store.get(["meta", "seed"]))) {
-    const raw = JSON.parse(await Deno.readTextFile(new URL("./seed/leaderboard.json", import.meta.url)));
-    const ps: any[] = raw.players ?? [];
-    for (let k = 0; k < ps.length; k++) {
-      await store.set(["player", `seed_${k + 1}`], {
-        name: String(ps[k].name ?? "Игрок").slice(0, 24),
-        wins: Number(ps[k].wins ?? 0),
-        games: Number(ps[k].games ?? 0),
-      });
+  if (!(await store.get(["meta", "reset2026"]))) {
+    for (const prefix of [["game"], ["player"], ["q"], ["presence"], ["meta", "seed"]]) {
+      for (const row of await store.list(prefix)) await store.del(row.key);
     }
-    await store.set(["meta", "seed"], { at: Date.now(), players: ps.length });
+    await store.set(["meta", "reset2026"], { at: Date.now() });
+    countCache.t = 0;
   }
-} catch (_e) { /* нет файла — просто начнём с чистого рейтинга */ }
+} catch (_e) { /* хранилище недоступно — пропускаем */ }
 
 /* ─────────── игра ─────────── */
 const other = (t: number) => (t === 1 ? 2 : 1);
@@ -251,6 +248,11 @@ function checkForfeit(g: Game, me: string | null): boolean {
   if (!oppSeat) return false;
   const last = Math.max(oppSeat.lastSeen || 0, g.startedAt || 0);
   if (Date.now() - last > FORFEIT_MS) {
+    if (g.moves.length === 0) {
+      // соперник так и не подключился — партию не засчитываем никому
+      (g as any).drop = true;
+      return true;
+    }
     finish(g, mySide as 1 | 2, "abandon");
     return true;
   }
@@ -359,7 +361,9 @@ Deno.serve(serveOptions, async (req: Request) => {
     const list = await store.list(["q"]);
     for (const row of list) {
       const v = row.value;
-      if (!v || v.assigned || v.qid === qk) continue;   // не пара самому себе
+      // не пара самому себе: свой слот, либо старая запись без qid от того же клиента
+      const sameSlot = v.qid ? v.qid === qk : v.clientId === me;
+      if (!v || v.assigned || sameSlot) continue;
       if (now - (v.ts || 0) > 6000) continue;
 
       const code = newCode();
@@ -467,10 +471,18 @@ Deno.serve(serveOptions, async (req: Request) => {
       if (sigOf(g) !== sig) break;
     }
 
+    if (dirty && (g as any).drop) {
+      await store.del(["game", g.code]);
+      return json({ error: "not_started" }, 409, origin);
+    }
     if (dirty) {
       await saveGame(g);
       await scoreGame(g);
     } else if (checkForfeit(g, me)) {
+      if ((g as any).drop) {
+        await store.del(["game", g.code]);
+        return json({ error: "not_started" }, 409, origin);
+      }
       await saveGame(g);
       await scoreGame(g);
     } else if (me) {

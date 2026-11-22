@@ -793,7 +793,15 @@ async function pollGame(code){
       if(fails>12){setState('Связь потеряна');return;}
       await new Promise(r=>setTimeout(r,2000));continue;
     }
-    if(st.error){setState('Партия не найдена');return;}
+    if(st.error){
+      if(st.error==='not_started'){
+        setState('Соперник не подключился');
+        overlay('<h2>Соперник не подключился</h2><p style="color:var(--muted)">Партия отменена, результат не засчитан.</p>'+
+          '<div class="row"><button class="btn primary btn-sm" data-ov="menu">В меню</button></div>');
+        return;
+      }
+      setState('Партия не найдена');return;
+    }
     applyState(st);
     if(S.over)return;
   }
