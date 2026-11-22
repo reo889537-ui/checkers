@@ -246,7 +246,17 @@ Deno.serve(serveOptions, async (req: Request) => {
   const me = req.headers.get("x-client-id") || null;
   const origin = "*";
 
-  if (req.method === "OPTIONS") return json({ ok: true }, 204, origin);
+  if (req.method === "OPTIONS") {
+    return new Response(null, {
+      status: 204,
+      headers: {
+        "access-control-allow-origin": origin,
+        "access-control-allow-methods": "GET,POST,DELETE,OPTIONS",
+        "access-control-allow-headers": "content-type,x-client-id,accept",
+        "access-control-max-age": "86400",
+      },
+    });
+  }
 
   /* health */
   if (path === "/health") {
@@ -459,7 +469,8 @@ Deno.serve(serveOptions, async (req: Request) => {
 
   /* сайт и файлы */
   if (path === "/" || path === "/index.html") return serveFile("./static/index.html");
-  if (path === "/play" || path === "/play/") return serveFile("./play/index.html");
+  if (path === "/play") return Response.redirect(url.origin + "/play/", 308);
+  if (path === "/play/") return serveFile("./play/index.html");
   if (path === "/download/win") return serveFile("./downloads/Shashki.exe", "Shashki.exe");
   if (path === "/download/apk") return serveFile("./downloads/Shashki.apk", "Shashki.apk");
   if (path === "/favicon.ico") return new Response(null, { status: 204 });
