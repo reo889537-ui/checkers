@@ -433,10 +433,19 @@ async function checkServer(){
 const cv=$('#board'),ctx=cv.getContext('2d');
 let size=600,cell=75,dpr=1;
 function cssv(n){return getComputedStyle(document.body).getPropertyValue(n).trim();}
+let resizePending=false;
 function resize(){
-  const wrap=document.querySelector('.board-wrap');
-  const availW=wrap.clientWidth-4, availH=wrap.clientHeight-4;
-  size=Math.max(220,Math.min(availW,availH,900));
+  if(resizePending)return;
+  resizePending=true;
+  requestAnimationFrame(()=>{resizePending=false;doResize();});
+}
+function doResize(){
+  const wide=window.innerWidth>900 && window.innerHeight<window.innerWidth;
+  const availW=Math.min(window.innerWidth-40,1080);
+  const availH=window.innerHeight-(wide?132:236);
+  const next=Math.max(200,Math.min(availW,availH,900));
+  if(cv.width && Math.abs(next-size)<0.5){draw(performance.now());return;}
+  size=next;
   cell=size/8;dpr=window.devicePixelRatio||1;
   cv.width=Math.round(size*dpr);cv.height=Math.round(size*dpr);
   cv.style.width=size+'px';cv.style.height=size+'px';
@@ -444,7 +453,6 @@ function resize(){
   draw(performance.now());
 }
 window.addEventListener('resize',()=>{if(S.screen==='game')resize();});
-if(window.ResizeObserver)new ResizeObserver(()=>{if(S.screen==='game')resize();}).observe(document.body);
 
 function rrect(x,y,w,h,r){
   ctx.beginPath();
