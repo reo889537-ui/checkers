@@ -19,7 +19,7 @@ deno task dev        # http://127.0.0.1:8000
 
 ## Деплой
 
-Приложение Deno Deploy собирается из этого репозитория (`server.ts`).
+Приложение Deno Deploy собирается из этого репозитория (`main.ts`).
 Сайт: `/`, браузерная игра: `/play`, клиент: `/download/win`, APK: `/download/apk`.
 
 ## API

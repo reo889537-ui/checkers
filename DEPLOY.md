@@ -7,8 +7,8 @@
    «Configure GitHub app permissions» → дайте Deno доступ к нему).
 3. Проверьте конфигурацию сборки:
    - Source: GitHub, ветка `main`
-   - Dynamic app, entrypoint: `server.ts`
-   - Build command: пусто (или `deno cache server.ts`)
+   - Dynamic app, entrypoint: `main.ts`
+   - Build command: пусто (или `deno cache main.ts`)
    - Install command: пусто
 4. Нажмите **Deploy** (или сохраните — сборка начнётся сама после пуша).
 
