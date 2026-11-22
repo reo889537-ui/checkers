@@ -472,7 +472,8 @@ Deno.serve(serveOptions, async (req: Request) => {
   if (path === "/play") return Response.redirect(url.origin + "/play/", 308);
   if (path === "/play/") return serveFile("./play/index.html");
   if (path === "/download/win") return serveFile("./downloads/Shashki.exe", "Shashki.exe");
-  if (path === "/download/apk") return serveFile("./downloads/Shashki.apk", "Shashki.apk");
+  if (path === "/download/apk") return serveFile("./downloads/Shashki-2.0.1.apk", "Shashki-2.0.1.apk");
+  if (path === "/download/apk19") return serveFile("./downloads/Shashki-1.9.apk", "Shashki-1.9.apk");
   if (path === "/favicon.ico") return new Response(null, { status: 204 });
 
   const safe = path.replace(/\.\./g, "").replace(/^\/+/, "");
